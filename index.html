@@ -1675,6 +1675,21 @@
 
     <div class="hotel-info-card" id="hotel-info-card"></div>
 
+    <div class="date-search-box">
+      <div class="date-search-title">¿Ya sabes tus fechas para este hotel? Búscalas aquí 🔎</div>
+      <div class="date-search-row">
+        <div class="date-field">
+          <label for="hotel-search-checkin">Llegada</label>
+          <input type="date" id="hotel-search-checkin">
+        </div>
+        <div class="date-field">
+          <label for="hotel-search-checkout">Salida</label>
+          <input type="date" id="hotel-search-checkout">
+        </div>
+      </div>
+      <button class="date-search-button" id="hotel-search-dates-btn">Buscar promociones de este hotel</button>
+    </div>
+
     <div class="controls">
       <div class="pill-group" id="year-pills"></div>
       <select class="sort-select" id="sort-select">
@@ -4769,9 +4784,8 @@ function formatIsoDisplay(iso){
 }
 const MES_ABBR_DISPLAY = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'};
 
-document.getElementById('search-dates-btn').addEventListener('click', ()=>{
-  const checkin = document.getElementById('search-checkin').value;
-  const checkout = document.getElementById('search-checkout').value;
+function runDateSearch(opts){
+  const { checkin, checkout, dest, hotelName, originView } = opts;
 
   if(!checkin || !checkout){
     alert('Elige tu fecha de llegada y de salida para buscar.');
@@ -4782,11 +4796,16 @@ document.getElementById('search-dates-btn').addEventListener('click', ()=>{
     return;
   }
 
-  const dest = activeDestinations()[currentDestIndex];
-  document.getElementById('search-results-code').textContent = dest.code;
-  document.getElementById('search-results-title').textContent = `${formatIsoDisplay(checkin)} – ${formatIsoDisplay(checkout)}`;
+  const pool = hotelName
+    ? dest.promos.filter(p=> baseHotelName(p.hotel) === hotelName)
+    : dest.promos;
 
-  const withCheckout = dest.promos.map(p=> ({...p, _checkout: addDaysToIso(p.sortDate, p.noches)}));
+  document.getElementById('search-results-code').textContent = dest.code;
+  document.getElementById('search-results-title').textContent = hotelName
+    ? `${hotelName} — ${formatIsoDisplay(checkin)} – ${formatIsoDisplay(checkout)}`
+    : `${formatIsoDisplay(checkin)} – ${formatIsoDisplay(checkout)}`;
+
+  const withCheckout = pool.map(p=> ({...p, _checkout: addDaysToIso(p.sortDate, p.noches)}));
 
   let matches = withCheckout.filter(p=> p.sortDate <= checkout && p._checkout >= checkin);
   let usedFallback = false;
@@ -4814,18 +4833,33 @@ document.getElementById('search-dates-btn').addEventListener('click', ()=>{
 
   searchResultsList.innerHTML = matches.map(p=>renderTicketGlobal(p, dest.name)).join('');
 
-  lastSearchContext = { matches, destName: dest.name, checkin, checkout, usedFallback };
+  lastSearchContext = { matches, destName: dest.name, hotelName: hotelName || null, checkin, checkout, usedFallback, originView };
   const downloadBtn = document.getElementById('download-results-btn');
   downloadBtn.style.display = matches.length ? 'flex' : 'none';
 
-  hotelView.style.display = 'none';
+  originView.style.display = 'none';
   searchResultsView.style.display = 'block';
   window.scrollTo(0,0);
+}
+
+document.getElementById('search-dates-btn').addEventListener('click', ()=>{
+  const checkin = document.getElementById('search-checkin').value;
+  const checkout = document.getElementById('search-checkout').value;
+  const dest = activeDestinations()[currentDestIndex];
+  runDateSearch({ checkin, checkout, dest, hotelName: null, originView: hotelView });
+});
+
+document.getElementById('hotel-search-dates-btn').addEventListener('click', ()=>{
+  const checkin = document.getElementById('hotel-search-checkin').value;
+  const checkout = document.getElementById('hotel-search-checkout').value;
+  const dest = activeDestinations()[currentDestIndex];
+  runDateSearch({ checkin, checkout, dest, hotelName: currentHotel, originView: detailView });
 });
 
 document.getElementById('search-back-btn').addEventListener('click', ()=>{
   searchResultsView.style.display = 'none';
-  hotelView.style.display = 'block';
+  const origin = (lastSearchContext && lastSearchContext.originView) ? lastSearchContext.originView : hotelView;
+  origin.style.display = 'block';
 });
 
 
@@ -5170,7 +5204,7 @@ function paginateMatches(matches, mctx, CARD_W, CARD_GAP){
 }
 
 function drawResultsPage(pageMatches, ctxInfo){
-  const { destName, checkin, checkout, usedFallback, pageIndex, totalPages, logoImg } = ctxInfo;
+  const { destName, hotelName, checkin, checkout, usedFallback, pageIndex, totalPages, logoImg } = ctxInfo;
   const W = 900;
   const SCALE = 3;
   const PAD = 34;
@@ -5205,17 +5239,19 @@ function drawResultsPage(pageMatches, ctxInfo){
   ctx.fillStyle = '#D9A928';
   ctx.fillRect(0, HEADER_H, W, 3);
 
-  const textX = logoImg ? PAD + 74 : PAD;
+  let logoW = 0;
+  if(logoImg){
+    const logoH = 60;
+    const naturalW = logoImg.naturalWidth || logoImg.width || 1;
+    const naturalH = logoImg.naturalHeight || logoImg.height || 1;
+    logoW = logoH * (naturalW / naturalH);
+  }
+  const textX = logoImg ? PAD + logoW + 14 : PAD;
   ctx.textBaseline = 'alphabetic';
   if(logoImg){
     try{
-      ctx.save();
-      drawRoundRectPath(ctx, PAD, 26, 56, 56, 12);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fill();
-      ctx.clip();
-      ctx.drawImage(logoImg, PAD, 26, 56, 56);
-      ctx.restore();
+      // logo ya tiene fondo transparente: se dibuja directo, sin caja blanca
+      ctx.drawImage(logoImg, PAD, 24, logoW, 60);
     }catch(e){}
   }
   ctx.fillStyle = '#D9A928';
@@ -5230,9 +5266,10 @@ function drawResultsPage(pageMatches, ctxInfo){
 
   ctx.fillStyle = '#D9A928';
   ctx.font = '800 17px Arial, sans-serif';
+  const titleLine = hotelName ? `${hotelName} · ${destName}` : destName;
   const destLine = totalPages > 1
-    ? `Promociones · ${destName} · Página ${pageIndex+1} de ${totalPages}`
-    : `Promociones · ${destName}`;
+    ? `Promociones · ${titleLine} · Página ${pageIndex+1} de ${totalPages}`
+    : `Promociones · ${titleLine}`;
   ctx.fillText(destLine, textX, 148);
 
   // subtitle band
@@ -5479,7 +5516,7 @@ function buildPdfFromPages(pagesData){
 
 function generateResultsImage(){
   if(!lastSearchContext || !lastSearchContext.matches.length) return;
-  const { matches, destName, checkin, checkout, usedFallback } = lastSearchContext;
+  const { matches, destName, hotelName, checkin, checkout, usedFallback } = lastSearchContext;
   const PAD = 34;
   const CARD_GAP = 16;
   const CARD_W = 900 - PAD*2;
@@ -5492,7 +5529,7 @@ function generateResultsImage(){
   return loadAgencyLogo().then(function(logoImg){
     const pagesData = pages.map(function(pageMatches, pageIndex){
       const { canvas, W, totalH } = drawResultsPage(pageMatches, {
-        destName, checkin, checkout, usedFallback,
+        destName, hotelName, checkin, checkout, usedFallback,
         pageIndex, totalPages, logoImg, totalMatches: matches.length
       });
       const dataUrl = canvas.toDataURL('image/jpeg', 0.93);
@@ -5511,7 +5548,10 @@ function generateResultsImage(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `promociones-${destName.replace(/[^a-zA-Z0-9]+/g,'-')}-${checkin}-a-${checkout}.pdf`;
+    const fileSlug = hotelName
+      ? `${hotelName}-${destName}`.replace(/[^a-zA-Z0-9]+/g,'-')
+      : destName.replace(/[^a-zA-Z0-9]+/g,'-');
+    a.download = `promociones-${fileSlug}-${checkin}-a-${checkout}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
