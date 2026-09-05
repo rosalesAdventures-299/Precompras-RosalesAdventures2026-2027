@@ -3540,7 +3540,7 @@ function cardHeightFor(mctx, p, CARD_W){
   h += 26;                    // hotel name line (matches cy += 26)
   mctx.font = '600 13.5px Arial, sans-serif';
   h += 32;                    // fechas/noches line + gap before price row (matches cy += 32)
-  h += 54;                    // price boxes (42px) + gap after (matches cy += 54)
+  h += 78;                    // occupancy boxes (66px) + gap after (matches cy += 78)
   if(p.menores && p.menores.length){
     h += p.menores.length * 19;  // matches cy += 19 per menor line
   }
@@ -3667,7 +3667,7 @@ function drawResultsPage(pageMatches, ctxInfo){
   ctx.fillStyle = '#D9A928';
   ctx.font = '800 15px Arial, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('PRECIOS POR PERSONA · POR TODA LA ESTANCIA', W / 2, noteY + PRICE_NOTE_H / 2 + 5);
+  ctx.fillText('PRECIOS POR PERSONA · TOTAL POR HABITACIÓN YA CALCULADO', W / 2, noteY + PRICE_NOTE_H / 2 + 5);
   ctx.textAlign = 'left';
 
   // cards
@@ -3712,48 +3712,49 @@ function drawResultsPage(pageMatches, ctxInfo){
     ctx.fillText(`${p.fechas} · ${p.noches} noche${p.noches!==1?'s':''}`, cx, cy + 10);
     cy += 32;
 
-    // price row with gold accent bar
+    // occupancy boxes (adults) with per-adult price + room total — mirrors web card design
     const cardRight = PAD + CARD_W - 22;
     const boxW = (cardRight - cx - 12) / 2;
-    let bx = cx;
-    if(p.precioAdultoDoble!=null){
+    const boxH = 66;
+    const drawOccBox = (bx, boxY, label, perPrice, totalPrice) => {
       ctx.save();
-      drawRoundRectPath(ctx, bx, cy, boxW, 42, 8);
+      drawRoundRectPath(ctx, bx, boxY, boxW, boxH, 8);
       ctx.clip();
       ctx.fillStyle = '#F4EFE4';
-      ctx.fillRect(bx, cy, boxW, 42);
+      ctx.fillRect(bx, boxY, boxW, boxH);
       ctx.fillStyle = '#D9A928';
-      ctx.fillRect(bx, cy, 3, 42);
+      ctx.fillRect(bx, boxY, 3, boxH);
       ctx.restore();
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
+
       ctx.fillStyle = '#5D6B7A';
-      ctx.font = '700 10.5px Arial, sans-serif';
-      ctx.fillText('Adulto doble', bx + 13, cy + 16);
+      ctx.font = '800 9.5px Arial, sans-serif';
+      ctx.fillText(label, bx + 13, boxY + 15);
+
       ctx.fillStyle = '#0B1930';
-      ctx.font = '800 15.5px Georgia, serif';
-      ctx.fillText('$' + p.precioAdultoDoble.toLocaleString('es-MX'), bx + 13, cy + 33);
+      ctx.font = '800 17px Georgia, serif';
+      const priceTxt = '$' + perPrice.toLocaleString('es-MX');
+      ctx.fillText(priceTxt, bx + 13, boxY + 35);
+      const priceW = ctx.measureText(priceTxt).width;
+      ctx.fillStyle = '#5D6B7A';
+      ctx.font = '600 9.5px Arial, sans-serif';
+      ctx.fillText('por adulto', bx + 13 + priceW + 5, boxY + 35);
+
+      ctx.fillStyle = '#B8891C';
+      ctx.font = '800 12px Arial, sans-serif';
+      ctx.fillText('Total: $' + totalPrice.toLocaleString('es-MX') + ' / hab.', bx + 13, boxY + 54);
+    };
+    let bx = cx;
+    if(p.precioAdultoDoble!=null){
+      drawOccBox(bx, cy, 'PARA 2 ADULTOS', p.precioAdultoDoble, p.precioAdultoDoble * 2);
       bx += boxW + 12;
     }
     if(p.precioAdultoTriple!=null){
-      ctx.save();
-      drawRoundRectPath(ctx, bx, cy, boxW, 42, 8);
-      ctx.clip();
-      ctx.fillStyle = '#F4EFE4';
-      ctx.fillRect(bx, cy, boxW, 42);
-      ctx.fillStyle = '#D9A928';
-      ctx.fillRect(bx, cy, 3, 42);
-      ctx.restore();
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#5D6B7A';
-      ctx.font = '700 10.5px Arial, sans-serif';
-      ctx.fillText('Adulto triple', bx + 13, cy + 16);
-      ctx.fillStyle = '#0B1930';
-      ctx.font = '800 15.5px Georgia, serif';
-      ctx.fillText('$' + p.precioAdultoTriple.toLocaleString('es-MX'), bx + 13, cy + 33);
+      drawOccBox(bx, cy, 'PARA 3 ADULTOS', p.precioAdultoTriple, p.precioAdultoTriple * 3);
     }
-    cy += 54;
+    cy += 78;
+
 
     if(p.menores && p.menores.length){
       ctx.font = '600 12.5px Arial, sans-serif';
