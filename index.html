@@ -1042,6 +1042,87 @@
     color: var(--navy);
     font-size: 16px;
   }
+  .occ-title{
+    font-family: var(--font-body);
+    font-weight:800;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 10px 0 8px;
+  }
+  .occ-options{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .occ-card{
+    background: var(--sand);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 11px 12px;
+  }
+  .occ-card-head{
+    display:flex;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap: 5px;
+    font-family: var(--font-body);
+    font-weight:800;
+    font-size: 12px;
+    color: var(--navy);
+    margin-bottom: 8px;
+  }
+  .occ-card-sub{
+    font-weight:600;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: none;
+  }
+  .occ-per{
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--navy);
+    font-size: 19px;
+    line-height:1.15;
+  }
+  .occ-per-label{
+    font-family: var(--font-body);
+    font-weight:600;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 9px;
+  }
+  .occ-total{
+    background: var(--gold-soft);
+    border-radius: var(--radius-sm);
+    padding: 6px 9px;
+  }
+  .occ-total-label{
+    font-family: var(--font-body);
+    font-weight:800;
+    font-size: 9.5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    margin-bottom: 2px;
+  }
+  .occ-total-value{
+    font-family: var(--font-display);
+    font-weight: 800;
+    color: var(--navy);
+    font-size: 16px;
+  }
+  .menores-section-title{
+    font-family: var(--font-body);
+    font-weight:800;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 4px 0 6px;
+  }
   .menor-line{
     font-family: var(--font-body);
     font-size: 12.5px;
@@ -1809,7 +1890,7 @@
 const CONFIG = {
   agencyName: "Rosale's Adventures",
   whatsappNumber: "524532267767", // 52 + lada 453 + número 226 7767
-  lastUpdated: "viernes, 4 de septiembre de 2026" // <-- actualiza cada vez que cambies datos
+  lastUpdated: "sábado, 5 de septiembre de 2026" // <-- actualiza cada vez que cambies datos
 };
 
 /* =========================================================
@@ -2945,11 +3026,18 @@ function renderTicketGlobal(p, destName){
   const msg = encodeURIComponent(`Hola, me interesa la promo de ${p.hotel} en ${destName} (${p.fechas}). ¿Me das más información?`);
   const msgAgotado = encodeURIComponent(`Hola, vi que la promo de ${p.hotel} en ${destName} (${p.fechas}) está agotada. ¿Podrían avisarme si hay disponibilidad o proponerme otras fechas?`);
 
-  const priceBoxes = `
-    <div class="ticket-price-row">
-      ${p.precioAdultoDoble!=null ? `<div class="price-box"><div class="price-box-label">Precio por adulto en habitación doble</div><div class="price-box-value">$${p.precioAdultoDoble.toLocaleString('es-MX')}</div></div>` : ''}
-      ${p.precioAdultoTriple!=null ? `<div class="price-box"><div class="price-box-label">Precio por adulto en habitación triple</div><div class="price-box-value">$${p.precioAdultoTriple.toLocaleString('es-MX')}</div></div>` : ''}
-    </div>`;
+  const occCards = [];
+  if(p.precioAdultoDoble!=null){
+    const per = p.precioAdultoDoble, total = per*2;
+    occCards.push(`<div class="occ-card"><div class="occ-card-head">👥 2 adultos<span class="occ-card-sub">hab. doble</span></div><div class="occ-per">$${per.toLocaleString('es-MX')}</div><div class="occ-per-label">por adulto</div><div class="occ-total"><div class="occ-total-label">Total habitación</div><div class="occ-total-value">$${total.toLocaleString('es-MX')}</div></div></div>`);
+  }
+  if(p.precioAdultoTriple!=null){
+    const per = p.precioAdultoTriple, total = per*3;
+    occCards.push(`<div class="occ-card"><div class="occ-card-head">👥 3 adultos<span class="occ-card-sub">hab. triple</span></div><div class="occ-per">$${per.toLocaleString('es-MX')}</div><div class="occ-per-label">por adulto</div><div class="occ-total"><div class="occ-total-label">Total habitación</div><div class="occ-total-value">$${total.toLocaleString('es-MX')}</div></div></div>`);
+  }
+  const occupancyBlock = occCards.length ? `
+    <div class="occ-title">¿Cuántos adultos viajan?</div>
+    <div class="occ-options">${occCards.join('')}</div>` : '';
 
   const menoresArr = p.menores || [];
   let minEdad = Infinity, maxEdad = -Infinity, todosNumericos = true;
@@ -2969,6 +3057,10 @@ function renderTicketGlobal(p, destName){
         return `<div class="menor-line"><b>${label}:</b> ${precioTxt}</div>`;
       }).join('');
 
+  const menoresBlock = menoresArr.length ? `
+    <div class="menores-section-title">👧 ¿Viajan menores?</div>
+    ${menorLines}` : '';
+
   const beneficiosTags = (p.beneficios && p.beneficios.length)
     ? `<div class="beneficios-wrap">${p.beneficios.map(b=>{
         const cls = b.startsWith('🎁') ? 'beneficio-tag beneficio-tag-featured' : 'beneficio-tag';
@@ -2984,9 +3076,9 @@ function renderTicketGlobal(p, destName){
         ${p.agotado ? `<span class="ticket-pill-agotado">Agotado</span>` : (p.badge ? `<span class="ticket-pill-urgente">${p.badge}</span>` : '')}
       </div>
       <div class="ticket-row"><span>${p.fechas}</span><span>${p.noches} noches</span></div>
-      ${priceBoxes}
-      <div class="price-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> Precio total por persona para toda la estancia</div>
-      ${menorLines}
+      ${occupancyBlock}
+      ${menoresBlock}
+      <div class="price-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg> Precios por persona, para toda la estancia. El total ya está calculado por habitación.</div>
       ${beneficiosTags}
     </div>
     <div class="ticket-divider"></div>
