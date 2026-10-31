@@ -1730,6 +1730,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
       Descargar todas las promociones disponibles
     </button>
+    <a class="download-results-btn" id="pdf-download-fallback" href="#" download style="display:none; text-decoration:none;">Descargar PDF</a>
 
     <div class="promo-list" id="search-results-list"></div>
   </div>
@@ -3548,6 +3549,13 @@ function runDateSearch(opts){
     : `${matches.length} promoci${matches.length===1?'ón':'ones'} encontrada${matches.length===1?'':'s'} para tus fechas, ordenadas por precio`;
 
   searchResultsList.innerHTML = matches.map(p=>renderTicketGlobal(p, dest.name)).join('');
+  const oldPdfLink = document.getElementById('pdf-download-fallback');
+  if(oldPdfLink){
+    if(oldPdfLink.dataset.objectUrl) URL.revokeObjectURL(oldPdfLink.dataset.objectUrl);
+    oldPdfLink.dataset.objectUrl = '';
+    oldPdfLink.removeAttribute('href');
+    oldPdfLink.style.display = 'none';
+  }
 
   lastSearchContext = { matches, destName: dest.name, hotelName: hotelName || null, checkin, checkout, usedFallback, originView };
   const downloadBtn = document.getElementById('download-results-btn');
@@ -4269,10 +4277,16 @@ function generateResultsImage(){
       ? `${hotelName}-${destName}`.replace(/[^a-zA-Z0-9]+/g,'-')
       : destName.replace(/[^a-zA-Z0-9]+/g,'-');
     a.download = `promociones-${fileSlug}-${checkin}-a-${checkout}.pdf`;
+    const fallback = document.getElementById('pdf-download-fallback');
+    if(fallback.dataset.objectUrl) URL.revokeObjectURL(fallback.dataset.objectUrl);
+    fallback.href = url;
+    fallback.download = a.download;
+    fallback.dataset.objectUrl = url;
+    fallback.textContent = 'Si no se descargó automáticamente, toca aquí para descargar el PDF';
+    fallback.style.display = 'flex';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(()=> URL.revokeObjectURL(url), 4000);
   });
 }
 
@@ -4282,7 +4296,7 @@ document.getElementById('download-results-btn').addEventListener('click', functi
   btn.disabled = true;
   btn.textContent = 'Generando PDF…';
   setTimeout(()=>{
-    Promise.resolve(generateResultsImage()).catch(function(e){ console.error(e); }).finally(function(){
+    Promise.resolve(generateResultsImage()).catch(function(e){ console.error(e); alert('No se pudo generar el PDF. Intenta de nuevo con un rango de fechas más corto.'); }).finally(function(){
       btn.disabled = false;
       btn.innerHTML = original;
     });
